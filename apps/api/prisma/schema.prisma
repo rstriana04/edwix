@@ -1,0 +1,825 @@
+// ─────────────────────────────────────────────
+// Edwix — Repair Shop Management System
+// Prisma Schema — All modules
+// ─────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════
+// ENUMS
+// ═══════════════════════════════════════════════
+
+enum UserRole {
+  ADMIN
+  TECHNICIAN
+  RECEPTIONIST
+}
+
+enum PartType {
+  BRANDED_SPARE
+  GENERIC_COMPONENT
+}
+
+enum PartUnit {
+  PCS
+  METERS
+  ROLLS
+  GRAMS
+  ML
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalMethod {
+  IN_PERSON
+  PHONE
+  WHATSAPP
+  EMAIL
+}
+
+enum CommunicationType {
+  CALL
+  WHATSAPP
+  EMAIL
+  SMS
+  IN_PERSON
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  RECEIVED
+  CANCELLED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  APPROVED
+  REJECTED
+  INVOICED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+}
+
+enum QuoteLineType {
+  LABOR
+  PART
+  FEE
+}
+
+enum AssetStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  RETIRED
+}
+
+enum NotificationChannel {
+  SMS
+  WHATSAPP
+  EMAIL
+  INTERNAL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum AlertType {
+  TICKET_OVERDUE
+  LOW_STOCK
+  APPROVAL_PENDING
+}
+
+// ═══════════════════════════════════════════════
+// MODULE 1: AUTH & USERS
+// ═══════════════════════════════════════════════
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  phone     String?
+  role      UserRole @default(TECHNICIAN)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  refreshTokens      RefreshToken[]
+  assignedTickets    Ticket[]            @relation("AssignedTechnician")
+  ticketStatusChanges TicketStatusChange[]
+  ticketNotes        TicketNote[]
+  ticketLabor        TicketLabor[]
+  stockMovements     StockMovement[]
+  communicationLogs  CommunicationLog[]
+  purchaseReceipts   PurchaseReceipt[]   @relation("ReceivedBy")
+  paymentsReceived   Payment[]           @relation("ReceivedBy")
+  assetCheckoutsBy   AssetCheckout[]     @relation("CheckedOutBy")
+  assetCheckoutsTo   AssetCheckout[]     @relation("CheckedOutTo")
+  assetMaintenance   AssetMaintenance[]
+  auditLogs          AuditLog[]
+  internalAlerts     InternalAlert[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ═══════════════════════════════════════════════
+// MODULE 2: CRM & CUSTOMERS
+// ═══════════════════════════════════════════════
+
+model Customer {
+  id         String    @id @default(cuid())
+  firstName  String    @map("first_name")
+  lastName   String    @map("last_name")
+  phone      String
+  email      String?
+  idDocument String?   @map("id_document")
+  address    String?
+  notes      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  devices           Device[]
+  tickets           Ticket[]
+  communicationLogs CommunicationLog[]
+  quotes            Quote[]
+  invoices          Invoice[]
+  notificationLogs  NotificationLog[]
+
+  @@index([phone])
+  @@index([lastName, firstName])
+  @@map("customers")
+}
+
+model Device {
+  id           String    @id @default(cuid())
+  customerId   String    @map("customer_id")
+  categoryId   String    @map("category_id")
+  brand        String
+  model        String
+  serialNumber String?   @map("serial_number")
+  color        String?
+  imei         String?
+  photos       String[]
+  notes        String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  customer Customer       @relation(fields: [customerId], references: [id])
+  category DeviceCategory @relation(fields: [categoryId], references: [id])
+  tickets  Ticket[]
+
+  @@index([customerId])
+  @@index([imei])
+  @@index([serialNumber])
+  @@map("devices")
+}
+
+model DeviceCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String?
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  devices           Device[]
+  laborRateDefaults LaborRateDefault[]
+
+  @@map("device_categories")
+}
+
+model CommunicationLog {
+  id         String            @id @default(cuid())
+  customerId String            @map("customer_id")
+  userId     String            @map("user_id")
+  type       CommunicationType
+  content    String
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@index([customerId])
+  @@map("communication_logs")
+}
+
+// ═══════════════════════════════════════════════
+// MODULE 3: REPAIR TICKET SYSTEM
+// ═══════════════════════════════════════════════
+
+model TicketStatus {
+  id         String  @id @default(cuid())
+  name       String  @unique
+  color      String  @default("#6B7280")
+  sortOrder  Int     @default(0) @map("sort_order")
+  isDefault  Boolean @default(false) @map("is_default")
+  isTerminal Boolean @default(false) @map("is_terminal")
+
+  tickets     Ticket[]
+  changesFrom TicketStatusChange[] @relation("FromStatus")
+  changesTo   TicketStatusChange[] @relation("ToStatus")
+
+  @@map("ticket_statuses")
+}
+
+model Ticket {
+  id                    String    @id @default(cuid())
+  ticketNumber          String    @unique @map("ticket_number")
+  customerId            String    @map("customer_id")
+  deviceId              String    @map("device_id")
+  statusId              String    @map("status_id")
+  assignedTechnicianId  String?   @map("assigned_technician_id")
+  reportedFault         String    @map("reported_fault")
+  accessoriesReceived   String[]  @map("accessories_received")
+  preExistingDamage     String?   @map("pre_existing_damage")
+  damagePhotos          String[]  @map("damage_photos")
+  estimatedDeliveryDate DateTime? @map("estimated_delivery_date")
+  publicAccessCode      String    @unique @map("public_access_code")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  deletedAt             DateTime? @map("deleted_at")
+
+  customer           Customer            @relation(fields: [customerId], references: [id])
+  device             Device              @relation(fields: [deviceId], references: [id])
+  status             TicketStatus        @relation(fields: [statusId], references: [id])
+  assignedTechnician User?               @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id])
+  statusChanges      TicketStatusChange[]
+  approvals          TicketApproval[]
+  notes              TicketNote[]
+  labor              TicketLabor[]
+  parts              TicketPart[]
+  quotes             Quote[]
+  invoices           Invoice[]
+  notificationLogs   NotificationLog[]
+
+  @@index([customerId])
+  @@index([deviceId])
+  @@index([statusId])
+  @@index([ticketNumber])
+  @@map("tickets")
+}
+
+model TicketStatusChange {
+  id           String   @id @default(cuid())
+  ticketId     String   @map("ticket_id")
+  fromStatusId String?  @map("from_status_id")
+  toStatusId   String   @map("to_status_id")
+  changedById  String   @map("changed_by_id")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  ticket     Ticket        @relation(fields: [ticketId], references: [id])
+  fromStatus TicketStatus? @relation("FromStatus", fields: [fromStatusId], references: [id])
+  toStatus   TicketStatus  @relation("ToStatus", fields: [toStatusId], references: [id])
+  changedBy  User          @relation(fields: [changedById], references: [id])
+
+  @@index([ticketId])
+  @@map("ticket_status_changes")
+}
+
+model TicketApproval {
+  id              String          @id @default(cuid())
+  ticketId        String          @map("ticket_id")
+  description     String
+  additionalCost  Decimal         @map("additional_cost") @db.Decimal(10, 2)
+  status          ApprovalStatus  @default(PENDING)
+  approvedByName  String?         @map("approved_by_name")
+  approvalMethod  ApprovalMethod? @map("approval_method")
+  approvedAt      DateTime?       @map("approved_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@map("ticket_approvals")
+}
+
+model TicketNote {
+  id        String   @id @default(cuid())
+  ticketId  String   @map("ticket_id")
+  userId    String   @map("user_id")
+  content   String
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@map("ticket_notes")
+}
+
+model TicketLabor {
+  id          String   @id @default(cuid())
+  ticketId    String   @map("ticket_id")
+  userId      String   @map("user_id")
+  description String
+  minutes     Int
+  ratePerHour Decimal  @map("rate_per_hour") @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@map("ticket_labor")
+}
+
+model TicketPart {
+  id        String   @id @default(cuid())
+  ticketId  String   @map("ticket_id")
+  partId    String   @map("part_id")
+  quantity  Int
+  unitPrice Decimal  @map("unit_price") @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  part   Part   @relation(fields: [partId], references: [id])
+
+  @@index([ticketId])
+  @@map("ticket_parts")
+}
+
+// ═══════════════════════════════════════════════
+// MODULE 4: INVENTORY & PARTS
+// ═══════════════════════════════════════════════
+
+model PartCategory {
+  id        String   @id @default(cuid())
+  name      String
+  parentId  String?  @map("parent_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  parent   PartCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children PartCategory[] @relation("CategoryTree")
+  parts    Part[]
+
+  @@unique([name, parentId])
+  @@map("part_categories")
+}
+
+model Part {
+  id               String    @id @default(cuid())
+  sku              String    @unique
+  name             String
+  description      String?
+  type             PartType
+  categoryId       String?   @map("category_id")
+  photos           String[]
+  unit             PartUnit  @default(PCS)
+  costPrice        Decimal   @map("cost_price") @db.Decimal(10, 2)
+  salePrice        Decimal   @map("sale_price") @db.Decimal(10, 2)
+  stockQuantity    Int       @default(0) @map("stock_quantity")
+  minimumStock     Int       @default(0) @map("minimum_stock")
+  storageLocation  String?   @map("storage_location")
+  compatibleBrands String[]  @map("compatible_brands")
+  compatibleModels String[]  @map("compatible_models")
+  specifications   Json?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  category           PartCategory?       @relation(fields: [categoryId], references: [id])
+  stockMovements     StockMovement[]
+  ticketParts        TicketPart[]
+  purchaseOrderItems PurchaseOrderItem[]
+
+  @@index([sku])
+  @@index([type])
+  @@index([categoryId])
+  @@map("parts")
+}
+
+model StockMovement {
+  id            String            @id @default(cuid())
+  partId        String            @map("part_id")
+  type          StockMovementType
+  quantity      Int
+  reason        String?
+  referenceType String?           @map("reference_type")
+  referenceId   String?           @map("reference_id")
+  userId        String            @map("user_id")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  part Part @relation(fields: [partId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([partId])
+  @@map("stock_movements")
+}
+
+// ═══════════════════════════════════════════════
+// MODULE 5: SUPPLIERS & PURCHASING
+// ═══════════════════════════════════════════════
+
+model Supplier {
+  id            String    @id @default(cuid())
+  name          String
+  contactName   String?   @map("contact_name")
+  phone         String?
+  email         String?
+  website       String?
+  address       String?
+  paymentTerms  String?   @map("payment_terms")
+  deliveryNotes String?   @map("delivery_notes")
+  notes         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  orderNumber String              @unique @map("order_number")
+  supplierId  String              @map("supplier_id")
+  status      PurchaseOrderStatus @default(DRAFT)
+  totalAmount Decimal?            @map("total_amount") @db.Decimal(10, 2)
+  notes       String?
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  items    PurchaseOrderItem[]
+  receipts PurchaseReceipt[]
+
+  @@index([supplierId])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id               String  @id @default(cuid())
+  purchaseOrderId  String  @map("purchase_order_id")
+  partId           String  @map("part_id")
+  quantityOrdered  Int     @map("quantity_ordered")
+  quantityReceived Int     @default(0) @map("quantity_received")
+  unitCost         Decimal @map("unit_cost") @db.Decimal(10, 2)
+
+  purchaseOrder PurchaseOrder       @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  part          Part                @relation(fields: [partId], references: [id])
+  receiptItems  PurchaseReceiptItem[]
+
+  @@map("purchase_order_items")
+}
+
+model PurchaseReceipt {
+  id              String   @id @default(cuid())
+  purchaseOrderId String   @map("purchase_order_id")
+  receivedById    String   @map("received_by_id")
+  notes           String?
+  receivedAt      DateTime @default(now()) @map("received_at")
+
+  purchaseOrder PurchaseOrder       @relation(fields: [purchaseOrderId], references: [id])
+  receivedBy    User                @relation("ReceivedBy", fields: [receivedById], references: [id])
+  items         PurchaseReceiptItem[]
+
+  @@map("purchase_receipts")
+}
+
+model PurchaseReceiptItem {
+  id                  String @id @default(cuid())
+  receiptId           String @map("receipt_id")
+  purchaseOrderItemId String @map("purchase_order_item_id")
+  quantityReceived    Int    @map("quantity_received")
+
+  receipt           PurchaseReceipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItem PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id])
+
+  @@map("purchase_receipt_items")
+}
+
+// ═══════════════════════════════════════════════
+// MODULE 6: QUOTES & BILLING
+// ═══════════════════════════════════════════════
+
+model Quote {
+  id          String      @id @default(cuid())
+  quoteNumber String      @unique @map("quote_number")
+  ticketId    String      @map("ticket_id")
+  customerId  String      @map("customer_id")
+  status      QuoteStatus @default(DRAFT)
+  subtotal    Decimal     @db.Decimal(10, 2)
+  taxRate     Decimal     @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount   Decimal     @map("tax_amount") @db.Decimal(10, 2)
+  total       Decimal     @db.Decimal(10, 2)
+  notes       String?
+  validUntil  DateTime?   @map("valid_until")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  ticket   Ticket      @relation(fields: [ticketId], references: [id])
+  customer Customer    @relation(fields: [customerId], references: [id])
+  lines    QuoteLine[]
+  invoices Invoice[]
+
+  @@index([ticketId])
+  @@index([customerId])
+  @@map("quotes")
+}
+
+model QuoteLine {
+  id          String        @id @default(cuid())
+  quoteId     String        @map("quote_id")
+  type        QuoteLineType
+  description String
+  quantity    Decimal       @db.Decimal(10, 2)
+  unitPrice   Decimal       @map("unit_price") @db.Decimal(10, 2)
+  total       Decimal       @db.Decimal(10, 2)
+  partId      String?       @map("part_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@map("quote_lines")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique @map("invoice_number")
+  quoteId       String?       @map("quote_id")
+  ticketId      String        @map("ticket_id")
+  customerId    String        @map("customer_id")
+  status        InvoiceStatus @default(DRAFT)
+  subtotal      Decimal       @db.Decimal(10, 2)
+  taxRate       Decimal       @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount     Decimal       @map("tax_amount") @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  dueDate       DateTime?     @map("due_date")
+  notes         String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  quote    Quote?        @relation(fields: [quoteId], references: [id])
+  ticket   Ticket        @relation(fields: [ticketId], references: [id])
+  customer Customer      @relation(fields: [customerId], references: [id])
+  lines    InvoiceLine[]
+  payments Payment[]
+
+  @@index([ticketId])
+  @@index([customerId])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id          String        @id @default(cuid())
+  invoiceId   String        @map("invoice_id")
+  type        QuoteLineType
+  description String
+  quantity    Decimal       @db.Decimal(10, 2)
+  unitPrice   Decimal       @map("unit_price") @db.Decimal(10, 2)
+  total       Decimal       @db.Decimal(10, 2)
+  partId      String?       @map("part_id")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_lines")
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  invoiceId    String        @map("invoice_id")
+  amount       Decimal       @db.Decimal(10, 2)
+  method       PaymentMethod
+  reference    String?
+  receivedById String        @map("received_by_id")
+  notes        String?
+  paidAt       DateTime      @default(now()) @map("paid_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  invoice    Invoice @relation(fields: [invoiceId], references: [id])
+  receivedBy User    @relation("ReceivedBy", fields: [receivedById], references: [id])
+
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+// ═══════════════════════════════════════════════
+// MODULE 7: ASSET MANAGEMENT
+// ═══════════════════════════════════════════════
+
+model Asset {
+  id             String      @id @default(cuid())
+  name           String
+  description    String?
+  category       String?
+  serialNumber   String?     @map("serial_number")
+  purchaseDate   DateTime?   @map("purchase_date")
+  purchaseCost   Decimal?    @map("purchase_cost") @db.Decimal(10, 2)
+  warrantyExpiry DateTime?   @map("warranty_expiry")
+  status         AssetStatus @default(AVAILABLE)
+  location       String?
+  notes          String?
+  photos         String[]
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  checkouts   AssetCheckout[]
+  maintenance AssetMaintenance[]
+
+  @@map("assets")
+}
+
+model AssetCheckout {
+  id             String    @id @default(cuid())
+  assetId        String    @map("asset_id")
+  checkedOutToId String    @map("checked_out_to_id")
+  checkedOutById String    @map("checked_out_by_id")
+  checkedOutAt   DateTime  @default(now()) @map("checked_out_at")
+  checkedInAt    DateTime? @map("checked_in_at")
+  notes          String?
+
+  asset        Asset @relation(fields: [assetId], references: [id])
+  checkedOutTo User  @relation("CheckedOutTo", fields: [checkedOutToId], references: [id])
+  checkedOutBy User  @relation("CheckedOutBy", fields: [checkedOutById], references: [id])
+
+  @@index([assetId])
+  @@map("asset_checkouts")
+}
+
+model AssetMaintenance {
+  id                  String    @id @default(cuid())
+  assetId             String    @map("asset_id")
+  description         String
+  performedById       String    @map("performed_by_id")
+  cost                Decimal?  @db.Decimal(10, 2)
+  performedAt         DateTime  @default(now()) @map("performed_at")
+  nextMaintenanceDate DateTime? @map("next_maintenance_date")
+  notes               String?
+
+  asset       Asset @relation(fields: [assetId], references: [id])
+  performedBy User  @relation(fields: [performedById], references: [id])
+
+  @@index([assetId])
+  @@map("asset_maintenance")
+}
+
+// ═══════════════════════════════════════════════
+// MODULE 9: NOTIFICATIONS
+// ═══════════════════════════════════════════════
+
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  event     String
+  channel   NotificationChannel
+  subject   String?
+  body      String
+  isActive  Boolean             @default(true) @map("is_active")
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  logs NotificationLog[]
+
+  @@unique([event, channel])
+  @@map("notification_templates")
+}
+
+model NotificationLog {
+  id         String              @id @default(cuid())
+  ticketId   String?             @map("ticket_id")
+  customerId String?             @map("customer_id")
+  channel    NotificationChannel
+  templateId String?             @map("template_id")
+  content    String
+  status     NotificationStatus  @default(PENDING)
+  sentAt     DateTime?           @map("sent_at")
+  error      String?
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  ticket   Ticket?               @relation(fields: [ticketId], references: [id])
+  customer Customer?             @relation(fields: [customerId], references: [id])
+  template NotificationTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([ticketId])
+  @@map("notification_logs")
+}
+
+model InternalAlert {
+  id            String    @id @default(cuid())
+  type          AlertType
+  referenceType String    @map("reference_type")
+  referenceId   String    @map("reference_id")
+  message       String
+  isRead        Boolean   @default(false) @map("is_read")
+  userId        String?   @map("user_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@map("internal_alerts")
+}
+
+// ═══════════════════════════════════════════════
+// MODULE 10: SETTINGS & CONFIGURATION
+// ═══════════════════════════════════════════════
+
+model BusinessProfile {
+  id         String   @id @default(cuid())
+  name       String
+  logo       String?
+  address    String?
+  phone      String?
+  email      String?
+  taxId      String?  @map("tax_id")
+  footerText String?  @map("footer_text")
+  currency   String   @default("COP")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("business_profile")
+}
+
+model LaborRateDefault {
+  id               String  @id @default(cuid())
+  deviceCategoryId String  @map("device_category_id")
+  description      String
+  ratePerHour      Decimal @map("rate_per_hour") @db.Decimal(10, 2)
+
+  deviceCategory DeviceCategory @relation(fields: [deviceCategoryId], references: [id])
+
+  @@map("labor_rate_defaults")
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+
+  @@map("settings")
+}
+
+// ═══════════════════════════════════════════════
+// AUDIT LOG (cross-cutting)
+// ═══════════════════════════════════════════════
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  changes    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

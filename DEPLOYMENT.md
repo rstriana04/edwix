@@ -37,7 +37,7 @@
 │   Static SPA     │ ←────────────── │  Express.js      │ ←───────────────  │    PostgreSQL    │
 │                  │     JSON        │  Node.js >=20    │     Query Results │                  │
 └──────────────────┘                 └──────────────────┘                   └──────────────────┘
-   edwix.vercel.app                  edwix-api.onrender.com                 *.supabase.co:6543
+   edwix-web.vercel.app                  edwix.onrender.com                 *.supabase.co:6543
 ```
 
 ### Trade-offs
@@ -164,7 +164,7 @@ Click **Create Web Service**. Render will build and deploy automatically.
 After deployment, verify:
 
 ```bash
-curl https://edwix-api.onrender.com/api/health
+curl https://edwix.onrender.com/api/health
 # Expected: {"status":"ok","timestamp":"..."}
 ```
 
@@ -172,7 +172,7 @@ curl https://edwix-api.onrender.com/api/health
 
 Use [cron-job.org](https://cron-job.org) (free) to ping your health endpoint every 14 minutes:
 
-- **URL**: `https://edwix-api.onrender.com/api/health`
+- **URL**: `https://edwix.onrender.com/api/health`
 - **Schedule**: Every 14 minutes
 - This also keeps Supabase active by triggering database connections
 
@@ -199,7 +199,7 @@ Use [cron-job.org](https://cron-job.org) (free) to ping your health endpoint eve
 
 | Variable | Value |
 |----------|-------|
-| `VITE_API_URL` | `https://edwix-api.onrender.com` |
+| `VITE_API_URL` | `https://edwix.onrender.com` |
 
 > **Note**: Do NOT include `/api` suffix — the Axios client in the frontend already prefixes requests with `/api`.
 
@@ -207,7 +207,7 @@ Use [cron-job.org](https://cron-job.org) (free) to ping your health endpoint eve
 
 Click **Deploy**. Vercel will build and deploy automatically.
 
-After deployment, open `https://edwix.vercel.app` (or your custom domain) and verify the login page loads.
+After deployment, open `https://edwix-web.vercel.app` (or your custom domain) and verify the login page loads.
 
 ### 5.4 Configure Rewrites (SPA Routing)
 
@@ -232,7 +232,7 @@ Update `apps/api/src/server.ts` to restrict CORS to your production frontend dom
 ```typescript
 app.use(cors({
   origin: [
-    'https://edwix.vercel.app',       // Vercel production
+    'https://edwix-web.vercel.app',       // Vercel production
     'http://localhost:5173',            // Local development
   ],
   credentials: true,
@@ -267,7 +267,7 @@ After updating, push the change to trigger a redeploy on Render.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VITE_API_URL` | Yes | Render backend URL (e.g., `https://edwix-api.onrender.com`) |
+| `VITE_API_URL` | Yes | Render backend URL (e.g., `https://edwix.onrender.com`) |
 
 ### Generating Secrets
 
@@ -395,30 +395,30 @@ git push main
 
 ```bash
 # 1. Health check
-curl https://edwix-api.onrender.com/api/health
+curl https://edwix.onrender.com/api/health
 # Expected: {"status":"ok","timestamp":"..."}
 
 # 2. API docs
-open https://edwix-api.onrender.com/api/docs
+open https://edwix.onrender.com/api/docs
 
 # 3. Login with default admin
-curl -X POST https://edwix-api.onrender.com/api/v1/auth/login \
+curl -X POST https://edwix.onrender.com/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@edwix.local","password":"Admin123!"}'
 # Expected: {"data":{"accessToken":"...","refreshToken":"..."}}
 
 # 4. Frontend loads
-open https://edwix.vercel.app
+open https://edwix-web.vercel.app
 # Expected: Login page renders, can log in
 
 # 5. Test authenticated endpoint
 TOKEN="<accessToken from login response>"
-curl https://edwix-api.onrender.com/api/v1/dashboard \
+curl https://edwix.onrender.com/api/v1/dashboard \
   -H "Authorization: Bearer $TOKEN"
 # Expected: Dashboard data
 
 # 6. IMPORTANT: Change admin password immediately
-curl -X PUT https://edwix-api.onrender.com/api/v1/auth/change-password \
+curl -X PUT https://edwix.onrender.com/api/v1/auth/change-password \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"currentPassword":"Admin123!","newPassword":"<strong-new-password>"}'

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from './auth.service';
+import { prisma } from '../../config/database';
 import { sendSuccess, sendCreated } from '../../utils/response';
 
 export const authController = {
@@ -43,6 +44,19 @@ export const authController = {
     try {
       const profile = await authService.getProfile(req.user!.sub);
       sendSuccess(res, profile);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async listUsers(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const users = await prisma.user.findMany({
+        where: { isActive: true },
+        select: { id: true, firstName: true, lastName: true, email: true, role: true },
+        orderBy: { firstName: 'asc' },
+      });
+      sendSuccess(res, users);
     } catch (err) {
       next(err);
     }

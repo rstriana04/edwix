@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 
 interface AuditEntry {
@@ -17,7 +18,7 @@ export async function createAuditLog(entry: AuditEntry): Promise<void> {
       action: entry.action,
       entityType: entry.entityType,
       entityId: entry.entityId,
-      changes: entry.changes ?? undefined,
+      changes: (entry.changes ?? undefined) as Prisma.InputJsonValue | undefined,
       ipAddress: entry.ipAddress,
     },
   });

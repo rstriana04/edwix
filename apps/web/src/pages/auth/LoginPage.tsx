@@ -25,8 +25,8 @@ export function LoginPage() {
       const message =
         err instanceof Error
           ? err.message
-          : (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data
-              ?.error?.message || 'Login failed';
+          : (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ||
+            'No fue posible iniciar sesión';
       setError(message);
     } finally {
       setLoading(false);
@@ -38,19 +38,13 @@ export function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl">Edwix</CardTitle>
-          <CardDescription>Repair Shop Management</CardDescription>
+          <CardDescription>Sistema de gestión para taller</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
+            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
+              <label htmlFor="email" className="text-sm font-medium">Correo</label>
               <Input
                 id="email"
                 type="email"
@@ -61,20 +55,18 @@ export function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
+              <label htmlFor="password" className="text-sm font-medium">Contraseña</label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Ingrese su contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Ingresando...' : 'Ingresar'}
             </Button>
           </form>
         </CardContent>

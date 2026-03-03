@@ -109,3 +109,4 @@ authRouter.post('/logout', validate(refreshTokenSchema), authController.logout);
  *       401: { description: Not authenticated }
  */
 authRouter.get('/me', authenticate, authController.me);
+authRouter.get('/users', authenticate, authController.listUsers);

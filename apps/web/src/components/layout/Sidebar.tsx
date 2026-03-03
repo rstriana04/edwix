@@ -10,20 +10,22 @@ import {
   HardDrive,
   BarChart3,
   Settings,
+  Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/customers', label: 'Customers', icon: Users },
+  { to: '/', label: 'Panel', icon: LayoutDashboard },
+  { to: '/customers', label: 'Clientes', icon: Users },
+  { to: '/devices', label: 'Dispositivos', icon: Smartphone },
   { to: '/tickets', label: 'Tickets', icon: Wrench },
-  { to: '/inventory', label: 'Inventory', icon: Package },
-  { to: '/suppliers', label: 'Suppliers', icon: Truck },
-  { to: '/quotes', label: 'Quotes', icon: FileText },
-  { to: '/invoices', label: 'Invoices', icon: Receipt },
-  { to: '/assets', label: 'Assets', icon: HardDrive },
-  { to: '/reports', label: 'Reports', icon: BarChart3 },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/inventory', label: 'Inventario', icon: Package },
+  { to: '/suppliers', label: 'Proveedores', icon: Truck },
+  { to: '/quotes', label: 'Cotizaciones', icon: FileText },
+  { to: '/invoices', label: 'Facturas', icon: Receipt },
+  { to: '/assets', label: 'Activos', icon: HardDrive },
+  { to: '/reports', label: 'Reportes', icon: BarChart3 },
+  { to: '/settings', label: 'Configuración', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -34,7 +36,6 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} />
       )}

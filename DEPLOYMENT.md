@@ -135,7 +135,7 @@ Supabase free tier pauses after 7 days of inactivity. Use one of these:
 | **Name** | `edwix-api` |
 | **Root Directory** | _(leave empty — monorepo root)_ |
 | **Runtime** | Node |
-| **Build Command** | `npm install && npm run build && cd apps/api && npx prisma generate` |
+| **Build Command** | `npm install && npm run build` |
 | **Start Command** | `node apps/api/dist/index.js` |
 | **Instance Type** | Free |
 | **Node Version** | Set `NODE_VERSION=20` in environment variables |

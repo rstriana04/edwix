@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { useAuthStore } from '@/stores/auth';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { DashboardPage } from '@/pages/dashboard/DashboardPage';
@@ -22,14 +23,16 @@ import { AssetDetailsPage } from '@/pages/assets/AssetDetailsPage';
 import { ReportsPage } from '@/pages/reports/ReportsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const token = localStorage.getItem('accessToken');
-  if (!token) return <Navigate to="/login" replace />;
+  if (!isAuthenticated && !token) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const token = localStorage.getItem('accessToken');
-  if (token) return <Navigate to="/" replace />;
+  if (isAuthenticated || token) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 

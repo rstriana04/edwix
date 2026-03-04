@@ -46,8 +46,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex h-16 items-center border-b px-6">
-          <h1 className="text-xl font-bold">Edwix</h1>
+        <div className="flex h-16 items-center border-b px-4 gap-3">
+          <img src="/logo-edwix.jpeg" alt="Alexis PC Movil" className="h-9 w-9 rounded-md object-contain" />
+          <span className="text-sm font-bold leading-tight">Alexis PC Movil</span>
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
